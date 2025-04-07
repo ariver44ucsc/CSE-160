@@ -44,11 +44,10 @@ class Vector3 {
       * @return this
       */
     add(other) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements[0] += other.elements[0];
+      this.elements[1] += other.elements[1];
+      this.elements[2] += other.elements[2];
+      return this;
     };
 
     /**
@@ -56,11 +55,10 @@ class Vector3 {
       * @return this
       */
     sub(other) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements[0] -= other.elements[0];
+      this.elements[1] -= other.elements[1];
+      this.elements[2] -= other.elements[2];
+      return this;
     };
 
     /**
@@ -68,11 +66,12 @@ class Vector3 {
       * @return this
       */
     div(scalar) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      if (scalar !== 0) {
+        this.elements[0] /= scalar;
+        this.elements[1] /= scalar;
+        this.elements[2] /= scalar;
+      }
+      return this;
     };
 
     /**
@@ -80,11 +79,10 @@ class Vector3 {
       * @return this
       */
     mul(scalar) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements[0] *= scalar;
+      this.elements[1] *= scalar;
+      this.elements[2] *= scalar;
+      return this;
     };
 
     /**
@@ -92,36 +90,36 @@ class Vector3 {
       * @return scalar
       */
     static dot(other1, other2) {
-        // Insert your code here.
-        let d = 0; // Modify this line to calculate this vector's magnitude.
-
-        // Don't delete the return statement.
-        return d;
-    }
+      let d = other1.elements[0] * other2.elements[0] +
+              other1.elements[1] * other2.elements[1] +
+              other1.elements[2] * other2.elements[2];
+      return d;
+  }
+  
 
     /**
       * Calcualte the cross product between this vector and other.
       * @return new vector
       */
     static cross(other1, other2) {
-        // Insert your code here.
-        // This function should create and return a new vector.
-        let v3 = new Vector3(); // Modify this line to calculate cross product between other1 and other2.
-
-        // Don't delete the return statement.
-        return v3;
-    }
+      const x = other1.elements[1] * other2.elements[2] - other1.elements[2] * other2.elements[1];
+      const y = other1.elements[2] * other2.elements[0] - other1.elements[0] * other2.elements[2];
+      const z = other1.elements[0] * other2.elements[1] - other1.elements[1] * other2.elements[0];
+  
+      return new Vector3([x, y, z]);
+  }
+  
 
     /**
       * Calculate the magnitude (or length) of this vector.
       * @return scalar
       */
     magnitude() {
-        // Insert your code here.
-        let m = 0; // Modify this line to calculate this vector's magnitude.
-
-        // Don't delete the return statement.
-        return m;
+      let x = this.elements[0];
+      let y = this.elements[1];
+      let z = this.elements[2];
+      let m = Math.sqrt(x * x + y * y + z * z);
+      return m;
     };
 
     /**
@@ -129,11 +127,13 @@ class Vector3 {
       * @return this
       */
     normalize() {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      let m = this.magnitude();
+      if (m !== 0) {
+          this.elements[0] /= m;
+          this.elements[1] /= m;
+          this.elements[2] /= m;
+      }
+      return this;
     };
 }
 
