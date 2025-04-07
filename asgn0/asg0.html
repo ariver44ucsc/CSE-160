@@ -2,13 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Draw a blue rectangle (canvas version)</title>
+    <title>asg0 - Vector Drawing</title>
   </head>
 
   <body onload="main()">
-    <canvas id="example" width="400" height="400">
+    <canvas id="example" width="400" height="400" style="background-color:black">
       Please use a browser that supports "canvas"
     </canvas>
-    <script src="DrawRectangle.js"></script>
+
+    <!-- Load the matrix library -->
+    <script src="lib/cuon-matrix-cse160.js"></script>
+
+    <!-- Load your vector drawing logic -->
+    <script src="asg0.js"></script>
   </body>
 </html>
