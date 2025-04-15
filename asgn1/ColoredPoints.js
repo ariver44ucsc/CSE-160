@@ -1,95 +1,122 @@
-// ColoredPoint.js (c) 2012 matsuda
-// Vertex shader program
-var VSHADER_SOURCE =
-  'attribute vec4 a_Position;\n' +
-  'void main() {\n' +
-  '  gl_Position = a_Position;\n' +
-  '  gl_PointSize = 10.0;\n' +
-  '}\n';
+const VSHADER_SOURCE = `
+  attribute vec4 a_Position;
+  uniform float u_Size;
+  void main() {
+    gl_Position = a_Position;
+    gl_PointSize = u_Size;
+  }
+`;
 
-// Fragment shader program
-var FSHADER_SOURCE =
-  'precision mediump float;\n' +
-  'uniform vec4 u_FragColor;\n' +  // uniform変数
-  'void main() {\n' +
-  '  gl_FragColor = u_FragColor;\n' +
-  '}\n';
+const FSHADER_SOURCE = `
+  precision mediump float;
+  uniform vec4 u_FragColor;
+  void main() {
+    gl_FragColor = u_FragColor;
+  }
+`;
+
+let gl, canvas;
+let a_Position, u_FragColor, u_Size;
+let fpsDisplay, numDotDisplay;
+
+let g_selectedType = 'point';
+let g_selectedColor = [1.0, 0.0, 0.0, 1.0];
+let g_selectedSize = 5;
+let g_selectedSegments = 10;
+let g_shapesList = [];
 
 function main() {
-  // Retrieve <canvas> element
-  var canvas = document.getElementById('webgl');
+  canvas = document.getElementById('webgl');
+  gl = getWebGLContext(canvas);
+  if (!gl) return;
 
-  // Get the rendering context for WebGL
-  var gl = getWebGLContext(canvas);
-  if (!gl) {
-    console.log('Failed to get the rendering context for WebGL');
-    return;
-  }
+  if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) return;
 
-  // Initialize shaders
-  if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
-    console.log('Failed to intialize shaders.');
-    return;
-  }
+  a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+  u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
+  u_Size = gl.getUniformLocation(gl.program, 'u_Size');
 
-  // // Get the storage location of a_Position
-  var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
-  if (a_Position < 0) {
-    console.log('Failed to get the storage location of a_Position');
-    return;
-  }
-
-  // Get the storage location of u_FragColor
-  var u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
-  if (!u_FragColor) {
-    console.log('Failed to get the storage location of u_FragColor');
-    return;
-  }
-
-  // Register function (event handler) to be called on a mouse press
-  canvas.onmousedown = function(ev){ click(ev, gl, canvas, a_Position, u_FragColor) };
-
-  // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-  // Clear <canvas>
+  fpsDisplay = document.getElementById('fpsCounter');
+  numDotDisplay = document.getElementById('numdot');
+
+  setupUI();
+  canvas.onmousedown = (ev) => handleClick(ev);
+  canvas.onmousemove = (ev) => { if (ev.buttons === 1) handleClick(ev); };
+
   gl.clear(gl.COLOR_BUFFER_BIT);
+  requestAnimationFrame(updateFPS);
 }
 
-var g_points = [];  // The array for the position of a mouse press
-var g_colors = [];  // The array to store the color of a point
-function click(ev, gl, canvas, a_Position, u_FragColor) {
-  var x = ev.clientX; // x coordinate of a mouse pointer
-  var y = ev.clientY; // y coordinate of a mouse pointer
-  var rect = ev.target.getBoundingClientRect();
+function setupUI() {
+  document.getElementById('green').onclick = () => g_selectedColor = [0.0, 1.0, 0.0, 1.0];
+  document.getElementById('red').onclick = () => g_selectedColor = [1.0, 0.0, 0.0, 1.0];
+  document.getElementById('clearButton').onclick = () => {
+    g_shapesList = [];
+    renderAllShapes();
+    numDotDisplay.innerText = `Shapes: 0`;
+  };
 
-  x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
-  y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
+  document.getElementById('pointButton').onclick = () => g_selectedType = 'point';
+  document.getElementById('triButton').onclick = () => g_selectedType = 'triangle';
+  document.getElementById('circleButton').onclick = () => g_selectedType = 'circle';
 
-  // Store the coordinates to g_points array
-  g_points.push([x, y]);
-  // Store the coordinates to g_points array
-  if (x >= 0.0 && y >= 0.0) {      // First quadrant
-    g_colors.push([1.0, 0.0, 0.0, 1.0]);  // Red
-  } else if (x < 0.0 && y < 0.0) { // Third quadrant
-    g_colors.push([0.0, 1.0, 0.0, 1.0]);  // Green
-  } else {                         // Others
-    g_colors.push([1.0, 1.0, 1.0, 1.0]);  // White
+  document.getElementById('redSlide').oninput = (e) => g_selectedColor[0] = e.target.value / 100;
+  document.getElementById('greenSlide').oninput = (e) => g_selectedColor[1] = e.target.value / 100;
+  document.getElementById('blueSlide').oninput = (e) => g_selectedColor[2] = e.target.value / 100;
+  document.getElementById('sizeSlide').oninput = (e) => g_selectedSize = parseFloat(e.target.value);
+}
+
+function handleClick(ev) {
+  const [x, y] = convertCoordinates(ev);
+  let shape;
+
+  if (g_selectedType === 'point') {
+    shape = new Point();
+  } else if (g_selectedType === 'triangle') {
+    shape = new Triangle();
+  } else {
+    shape = new Circle();
+    shape.segments = g_selectedSegments;
   }
 
-  // Clear <canvas>
+  shape.position = [x, y];
+  shape.color = g_selectedColor.slice();
+  shape.size = g_selectedSize;
+
+  g_shapesList.push(shape);
+  numDotDisplay.innerText = `Shapes: ${g_shapesList.length}`;
+  renderAllShapes();
+}
+
+function convertCoordinates(ev) {
+  const rect = canvas.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left) - canvas.width / 2) / (canvas.width / 2);
+  const y = (canvas.height / 2 - (ev.clientY - rect.top)) / (canvas.height / 2);
+  return [x, y];
+}
+
+function renderAllShapes() {
   gl.clear(gl.COLOR_BUFFER_BIT);
-
-  var len = g_points.length;
-  for(var i = 0; i < len; i++) {
-    var xy = g_points[i];
-    var rgba = g_colors[i];
-
-    // Pass the position of a point to a_Position variable
-    gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
-    // Pass the color of a point to u_FragColor variable
-    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-    // Draw
-    gl.drawArrays(gl.POINTS, 0, 1);
+  for (let shape of g_shapesList) {
+    shape.render();
   }
+}
+
+let lastFrameTime = performance.now();
+let frameCount = 0;
+
+function updateFPS() {
+  const now = performance.now();
+  const delta = now - lastFrameTime;
+  frameCount++;
+
+  if (delta >= 1000) {
+    fpsDisplay.innerText = `FPS: ${Math.round((frameCount * 1000) / delta)}`;
+    frameCount = 0;
+    lastFrameTime = now;
+  }
+
+  requestAnimationFrame(updateFPS);
 }

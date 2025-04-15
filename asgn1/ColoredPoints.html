@@ -1,18 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Change a point color</title>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <title>Bob Ross Paint App</title>
+  <style>
+    body {
+      background-color: #e6dccd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 20px;
+    }
 
-  <body onload="main()">
+    #canvasContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 40px;
+  margin-bottom: 20px;
+}
+
+#bobContainer {
+  height: 400px;
+  width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f7f0e3;
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+}
+
+#bobImage {
+  max-height: 90%;
+  max-width: 90%;
+  object-fit: contain;
+}
+
+    #webgl {
+      border: 10px solid #aaa;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+      cursor: url('cursor.cur'), auto;
+    }
+
+    button, input {
+      margin: 5px;
+    }
+  </style>
+</head>
+
+<body onload="main()">
+  <!-- Bob Ross image + Canvas side-by-side -->
+  <div id="canvasContainer">
+    <div id="bobContainer">
+      <img id="bobImage" src="Bob-Ross-PNG-Pic.png" alt="Bob Ross">
+    </div>
     <canvas id="webgl" width="400" height="400">
-    Please use a browser that supports "canvas"
+      Please use a browser that supports "canvas"
     </canvas>
+  </div>
+  
+  <!-- Stats -->
+  <p id="numdot">Shapes: 0</p>
+  <p id="fpsCounter">FPS: 0</p>
 
-    <script src="../lib/webgl-utils.js"></script>
-    <script src="../lib/webgl-debug.js"></script>
-    <script src="../lib/cuon-utils.js"></script>
-    <script src="ColoredPoints.js"></script>
-  </body>
+  <!-- Color Buttons -->
+  <button id="green">Green</button>
+  <button id="red">Red</button>
+  <button id="clearButton">Clear</button>
+
+  <!-- Shape Buttons -->
+  <button id="pointButton">Point</button>
+  <button id="triButton">Triangle</button>
+  <button id="circleButton">Circle</button>
+
+  <!-- Sliders -->
+  <p>Red <input type="range" min="0" max="100" value="100" id="redSlide"></p>
+  <p>Green <input type="range" min="0" max="100" value="0" id="greenSlide"></p>
+  <p>Blue <input type="range" min="0" max="100" value="0" id="blueSlide"></p>
+  <p>Size <input type="range" min="5" max="40" value="5" id="sizeSlide"></p>
+
+  <!-- JS files -->
+  <script src="lib/webgl-utils.js"></script>
+  <script src="lib/webgl-debug.js"></script>
+  <script src="lib/cuon-utils.js"></script>
+  <script src="point.js"></script>
+  <script src="triangle.js"></script>
+  <script src="circle.js"></script>
+  <script src="ColoredPoints.js"></script>
+</body>
 </html>
