@@ -61,6 +61,9 @@ function setupUI() {
   document.getElementById('pointButton').onclick = () => g_selectedType = 'point';
   document.getElementById('triButton').onclick = () => g_selectedType = 'triangle';
   document.getElementById('circleButton').onclick = () => g_selectedType = 'circle';
+  document.getElementById("swordButton").onclick = function() {
+    drawSword();
+  };
 
   document.getElementById('redSlide').oninput = (e) => g_selectedColor[0] = e.target.value / 100;
   document.getElementById('greenSlide').oninput = (e) => g_selectedColor[1] = e.target.value / 100;
@@ -119,4 +122,43 @@ function updateFPS() {
   }
 
   requestAnimationFrame(updateFPS);
+}
+
+function drawSword() {
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);  // set to black
+  gl.clear(gl.COLOR_BUFFER_BIT);     // actually clear it
+
+  // TIP (2 triangles)
+  gl.uniform4f(u_FragColor, 0.85, 0.85, 0.85, 1.0); // silver
+  drawTriangle([0.0, 0.8, -0.05, 0.7, 0.05, 0.7]);
+  drawTriangle([-0.05, 0.7, 0.0, 0.6, 0.05, 0.7]);
+
+  // BLADE (6 stacked triangles)
+  for (let i = 0; i < 6; i++) {
+    let top = 0.6 - i * 0.1;
+    let bottom = top - 0.1;
+    drawTriangle([-0.03, top, 0.03, top, -0.03, bottom]);
+    drawTriangle([0.03, top, 0.03, bottom, -0.03, bottom]);
+  }
+
+  // GUARD (4 triangles, 2 on each side)
+  gl.uniform4f(u_FragColor, 0.9, 0.75, 0.1, 1.0); // gold
+  drawTriangle([-0.1, -0.1, -0.03, -0.1, -0.03, -0.15]);
+  drawTriangle([-0.1, -0.1, -0.03, -0.15, -0.1, -0.15]);
+  drawTriangle([0.03, -0.1, 0.1, -0.1, 0.03, -0.15]);
+  drawTriangle([0.1, -0.1, 0.1, -0.15, 0.03, -0.15]);
+
+  // HANDLE (4 stacked triangles)
+  gl.uniform4f(u_FragColor, 0.3, 0.15, 0.05, 1.0); // dark brown
+  for (let i = 0; i < 2; i++) {
+    let top = -0.15 - i * 0.1;
+    let bottom = top - 0.1;
+    drawTriangle([-0.025, top, 0.025, top, -0.025, bottom]);
+    drawTriangle([0.025, top, 0.025, bottom, -0.025, bottom]);
+  }
+
+  // POMMEL (bottom decoration, 2 triangles)
+  gl.uniform4f(u_FragColor, 0.7, 0.7, 0.7, 1.0); // silver
+  drawTriangle([-0.05, -0.4, 0.05, -0.4, 0.0, -0.45]);
+  drawTriangle([-0.04, -0.45, 0.04, -0.45, 0.0, -0.48]);
 }
