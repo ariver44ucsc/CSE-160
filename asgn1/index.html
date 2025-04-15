@@ -15,34 +15,41 @@
     }
 
     #canvasContainer {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 40px;
-  margin-bottom: 20px;
-}
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 40px;
+      margin-bottom: 20px;
+    }
 
-#bobContainer {
-  height: 400px;
-  width: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f7f0e3;
-  border-radius: 20px;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-}
+    #bobContainer {
+      height: 400px;
+      width: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f7f0e3;
+      border-radius: 20px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    }
 
-#bobImage {
-  max-height: 90%;
-  max-width: 90%;
-  object-fit: contain;
-}
+    #bobImage {
+      max-height: 90%;
+      max-width: 90%;
+      object-fit: contain;
+    }
 
     #webgl {
       border: 10px solid #aaa;
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
       cursor: url('cursor.cur'), auto;
+    }
+
+    #swordSketch {
+      height: 400px;
+      width: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
     }
 
     button, input {
@@ -52,21 +59,25 @@
 </head>
 
 <body onload="main()">
-  <!-- Bob Ross image + Canvas side-by-side -->
+  <!-- Bob Ross image + Canvas + Sword sketch -->
   <div id="canvasContainer">
     <div id="bobContainer">
       <img id="bobImage" src="Bob-Ross-PNG-Pic.png" alt="Bob Ross">
     </div>
+
     <canvas id="webgl" width="400" height="400">
       Please use a browser that supports "canvas"
     </canvas>
+
+    <img id="swordSketch" src="sword.jpg" alt="My sword sketch">
   </div>
-  
+
   <!-- Stats -->
   <p id="numdot">Shapes: 0</p>
   <p id="fpsCounter">FPS: 0</p>
 
   <!-- Color Buttons -->
+  <button id="swordButton">Draw Sword</button>
   <button id="green">Green</button>
   <button id="red">Red</button>
   <button id="clearButton">Clear</button>
@@ -90,6 +101,5 @@
   <script src="triangle.js"></script>
   <script src="circle.js"></script>
   <script src="ColoredPoints.js?v=1.1"></script>
-
 </body>
 </html>
