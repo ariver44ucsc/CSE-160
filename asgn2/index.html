@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Blocky Turtle</title>
+  <style>
+    body {
+      background-color: #e6dccd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Georgia', serif;
+      margin: 0;
+      padding: 20px;
+    }
+    #canvasContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    #webgl {
+      border: 10px solid #aaa;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+      background-color: rgb(91, 82, 82);
+    }
+    button, input {
+      margin: 5px;
+    }
+  </style>
+</head>
+
+<body onload="main()">
+  <div id="canvasContainer">
+    <canvas id="webgl" width="500" height="500">
+      Please use a browser that supports "canvas"
+    </canvas>
+  </div>
+
+  <h2>Turtle Controls</h2>
+  <p>Rotate X: <input type="range" min="-180" max="180" value="0" id="CameraAngleSlideX"></p>
+  <p>Rotate Y: <input type="range" min="-180" max="180" value="0" id="CameraAngleSlideY"></p>
+  <p>Rotate Z: <input type="range" min="-180" max="180" value="0" id="CameraAngleSlideZ"></p>
+
+  <h3>Body Parts:</h3>
+  <p>Head Rotation: <input type="range" min="-30" max="30" value="0" id="Head_Joint"></p>
+  <p>Left Legs Rotation: <input type="range" min="-45" max="45" value="0" id="joint"></p>
+  <p>Right Legs Rotation: <input type="range" min="-45" max="45" value="0" id="joint2"></p>
+
+  <h3>Animation</h3>
+  <button id="WalkAnimationButton_On">Walk On</button>
+  <button id="WalkAnimationButton_Off">Walk Off</button>
+  <button id="AllTailsAnimationButton_On">Tail Anim On</button>
+  <button id="AllTailsAnimationButton_Off">Tail Anim Off</button>
+
+  <p id="fps">FPS: --</p>
+
+  <!-- Libraries -->
+  <script src="lib/webgl-utils.js"></script>
+  <script src="lib/webgl-debug.js"></script>
+  <script src="lib/cuon-utils.js"></script>
+  <script src="lib/cuon-matrix.js"></script>
+
+  <!-- Your files -->
+  <script src="triangle.js"></script>
+  <script src="point.js"></script>
+  <script src="circle.js"></script>
+  <script src="cube.js"></script>
+  <script src="BlockyAnimal.js"></script>
+</body>
+</html>

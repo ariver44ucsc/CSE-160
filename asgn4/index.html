@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Voxel World - Lighting</title> 
+<style>
+  body { margin:0; background:#2c3e50; overflow: hidden; font-family: Arial, sans-serif; }
+  canvas { display:block; margin:0px auto; border:1px solid #1a252f; }
+  #crosshair {
+    position: fixed; left: 50%; top: 50%; width: 12px; height: 1px;
+    background-color: rgba(255, 255, 255, 0.75); transform: translate(-50%, -50%);
+    pointer-events: none; z-index: 20; box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  }
+  #crosshair::before {
+    content: ''; position: absolute; left: 50%; top: -5.5px;
+    width: 1px; height: 12px;
+    background-color: rgba(255, 255, 255, 0.75); transform: translateX(-50%);
+    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  }
+  #hud {
+    position:fixed;top:10px;right:10px;padding:10px 15px;
+    background:rgba(0,0,0,.65);color:#ecf0f1;font:15px monospace;
+    line-height:1.5;border-radius:6px;user-select:none; z-index:10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  #lighting-controls { /* Style for the controls div */
+    position:fixed; top:10px; left:10px; padding:10px;
+    background:rgba(0,0,0,0.65); color:#ecf0f1; border-radius:6px;
+    font:14px monospace; z-index: 10;
+  }
+  #lighting-controls button, #lighting-controls input {
+    margin-bottom: 5px;
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="glcanvas" width="800" height="600"></canvas>
+  <div id="crosshair"></div>
+  <div id="hud">
+    W A S D – move<br>
+    Mouse – look<br>
+    Q/E - Pan<br>
+    <span id="fps">FPS: …</span><br> 
+    H – Hide / Show help
+  </div>
+
+  <div id="lighting-controls">
+    <h3>Lighting Controls</h3>
+    <button id="normalVizButton">Toggle Normal Vis (On)</button><br>
+    
+    <button id="lightingToggleButton">Toggle Lighting (On)</button><br>
+    <hr>
+    Point Light X: <input type="range" min="-20" max="20" value="4" step="0.5" id="pointLightXSlider"> <span id="pointLightXValue">4</span><br>
+    Point Light Y: <input type="range" min="0" max="20" value="5" step="0.5" id="pointLightYSlider"> <span id="pointLightYValue">5</span><br>
+    Point Light Z: <input type="range" min="-20" max="20" value="4" step="0.5" id="pointLightZSlider"> <span id="pointLightZValue">4</span><br>
+    </div>
+
+  <script src="lib/webgl-utils.js"></script>
+  <script src="lib/webgl-debug.js"></script>
+  <script src="lib/cuon-utils.js"></script>
+  <script src="lib/cuon-matrix.js"></script>
+  <script type="module" src="./main.js"></script> 
+</html>
