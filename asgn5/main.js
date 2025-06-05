@@ -7,12 +7,18 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 let scene, camera, renderer, controls;
 const animatedObjects = [];
 const clock = new THREE.Clock();
+let sceneContainer;
+
+// Globals for Raycasting and interactive switch (Wow Point)
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let interactiveSwitch; // Will be assigned in init()
+const stageSpotLights = []; 
 
 // --- Configuration for your OBJ models ---
 const beerPongTablePath = './models/beerpong/';
 const beerPongTableOBJ = 'beerpong_table.obj';
 const beerPongTableMTL = 'beerpong_table.mtl';
-const BEER_PONG_TABLE_ORIGINAL_SURFACE_HEIGHT = 0.75; // Adjust this!
 
 const djSetupPath = './models/dj_setup/';
 const djSetupOBJ = 'dj_booth.obj';
@@ -20,41 +26,50 @@ const djSetupMTL = 'dj_booth.mtl';
 
 
 function init() {
+    sceneContainer = document.getElementById('scene-container');
+    if (!sceneContainer) {
+        console.error("CRITICAL ERROR: Scene container div not found!");
+        sceneContainer = document.body; 
+        alert("Error: Scene container not found. Renderer will append to body.");
+    }
+
     // 1. Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050010); // Fallback, skybox preferred
+    scene.background = new THREE.Color(0x050010);
 
     // REQUIREMENT: A textured skybox
-    const skyboxImagePaths = [ /* ... your 6 skybox image paths ... */ ];
+    const skyboxImagePaths = [
+        './skybox/px.png', './skybox/nx.png',
+        './skybox/py.png', './skybox/ny.png',
+        './skybox/pz.png', './skybox/nz.png'
+    ];
     const skyboxLoader = new THREE.CubeTextureLoader();
     skyboxLoader.load(skyboxImagePaths, (texture) => {
         scene.background = texture; console.log("Skybox loaded.");
     }, undefined, (err) => {
-        console.error("Skybox failed to load: ", err);
+        console.error("Skybox load failed:", err);
+        scene.background = new THREE.Color(0x110011); 
     });
 
     // REQUIREMENT: A camera with perspective projection
     // 2. Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, sceneContainer.clientWidth / sceneContainer.clientHeight, 0.1, 1000);
     camera.position.set(0, 1.7, 10);
 
-    // 3. Renderer (Performance Optimized)
-    renderer = new THREE.WebGLRenderer({ antialias: false }); // PERFORMANCE: antialias off
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(1); // PERFORMANCE: Render at 1:1 pixel ratio
-    
-    // PERFORMANCE: Shadows completely disabled
+    // 3. Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight);
+    renderer.setPixelRatio(1); 
     renderer.shadowMap.enabled = false; 
-    // renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Not needed if shadows are off
-
-    document.body.appendChild(renderer.domElement);
+    sceneContainer.appendChild(renderer.domElement); 
+    renderer.domElement.setAttribute('tabindex', '0');
 
     // REQUIREMENT: Controls to navigate the scene with the mouse
     // 4. Controls - FirstPersonControls
     controls = new FirstPersonControls(camera, renderer.domElement);
     controls.movementSpeed = 10;
-    controls.lookSpeed = 0.075;
-    controls.activeLook = true;
+    controls.lookSpeed = 0.2; 
+    controls.activeLook = true; 
     controls.noFly = true;
     controls.lookVertical = true;
     controls.constrainVertical = true;
@@ -63,78 +78,23 @@ function init() {
 
     // REQUIREMENT: At least three different light sources
     // 5. Lights
-    const ambientLight = new THREE.AmbientLight(0x707080, 1.2); // Slightly brighter ambient
+    const ambientLight = new THREE.AmbientLight(0x505050, 1.1);        
     scene.add(ambientLight);
-
-    const hemisphereLight = new THREE.HemisphereLight(0x8090a0, 0x202025, 1.5);
+    const hemisphereLight = new THREE.HemisphereLight(0x607080, 0x151520, 1.3); 
     scene.add(hemisphereLight);
-
-    // Only one directional light, not casting shadows now
-    const moonLight = new THREE.DirectionalLight(0xaaaaff, 1.8);
+    const moonLight = new THREE.DirectionalLight(0x8090ff, 1.5);      
     moonLight.position.set(10, 20, 7);
-    moonLight.castShadow = false; // PERFORMANCE: No shadows from this light
     scene.add(moonLight);
 
-    // String Lights - Now with Poles and Instanced Bulbs
-    const shapes = []; // For counting non-instanced primary shapes
-    const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 6); // PERFORMANCE: Low segments
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-    const polePositions = [
-        new THREE.Vector3(-8, 3.5/2, -2), new THREE.Vector3(0, 3.5/2, -8), new THREE.Vector3(8, 3.5/2, -2),
-    ];
-    polePositions.forEach(pos => {
-        const pole = new THREE.Mesh(poleGeo, poleMat);
-        pole.position.copy(pos);
-        // pole.castShadow = false; // No shadows in scene
-        scene.add(pole); shapes.push(pole);
-    });
-
-    const bulbGeo = new THREE.SphereGeometry(0.15, 8, 4); // PERFORMANCE: Low segments
-    const stringLightMaterial = new THREE.MeshStandardMaterial({ emissive: 0xffff00, emissiveIntensity: 1 });
-    const lightStrings = [
-        { start: polePositions[0].clone().setY(3.2), end: new THREE.Vector3(-2, 3.2, -4.5), bulbs: 5 },
-        { start: polePositions[1].clone().setY(3.4), end: new THREE.Vector3(0, 3.4, -4.5), bulbs: 6 },
-        { start: polePositions[2].clone().setY(3.2), end: new THREE.Vector3(2, 3.2, -4.5), bulbs: 5 },
-        { start: polePositions[0].clone().setY(3.3), end: polePositions[1].clone().setY(3.3), bulbs: 7},
-        { start: polePositions[1].clone().setY(3.3), end: polePositions[2].clone().setY(3.3), bulbs: 7},
-    ];
-
-    const allBulbPositions = [];
-    lightStrings.forEach(str => {
-        for (let i = 0; i <= str.bulbs; i++) {
-            const t = i / str.bulbs;
-            const bulbPos = new THREE.Vector3().lerpVectors(str.start, str.end, t);
-            bulbPos.y -= Math.sin(t * Math.PI) * 0.3;
-            allBulbPositions.push(bulbPos);
-
-            // PointLights for illumination (no shadows)
-            const pointLight = new THREE.PointLight(0xffcc66, 0.7, 10, 1.5); // Reduced intensity/range
-            pointLight.position.copy(bulbPos);
-            pointLight.castShadow = false;
-            scene.add(pointLight);
-        }
-    });
-    
-    // PERFORMANCE: InstancedMesh for all string light bulbs
-    const bulbInstanced = new THREE.InstancedMesh(bulbGeo, stringLightMaterial, allBulbPositions.length);
-    const dummyBulb = new THREE.Object3D();
-    allBulbPositions.forEach((pos, i) => {
-        dummyBulb.position.copy(pos);
-        dummyBulb.updateMatrix();
-        bulbInstanced.setMatrixAt(i, dummyBulb.matrix);
-    });
-    scene.add(bulbInstanced);
-    // InstancedMesh counts as many visual shapes for the requirement.
-
-
+    const shapes = [];
     // Spotlight Cones and Lights - Mounted on Stage
-    const stageEdgeZ = -4.5 + 3/2 - 0.1;
-    const stageSurfaceY = 0.2 + 0.4/2 + 0.1;
+    const stageEdgeZ = -4.5 + 3/2 - 0.1; 
+    const stageSurfaceY = 0.2 + 0.4/2 + 0.1; 
     const spotLightPositionsNew = [ {x: -1.5, y: stageSurfaceY, z: stageEdgeZ}, {x: 1.5, y: stageSurfaceY, z: stageEdgeZ} ];
-    const stageLightColors = [0xff00ff, 0x00ffff];
+    const stageLightColors = [0xff00ff, 0x00ffff]; 
 
     spotLightPositionsNew.forEach((pos, index) => {
-        const spotLightConeGeo = new THREE.CylinderGeometry(0.15, 0.05, 0.4, 8); // PERFORMANCE: Low segments
+        const spotLightConeGeo = new THREE.CylinderGeometry(0.15, 0.05, 0.4, 8);
         const spotLightConeMat = new THREE.MeshStandardMaterial({emissive: stageLightColors[index], emissiveIntensity: 1});
         const spotLightCone = new THREE.Mesh(spotLightConeGeo, spotLightConeMat);
         spotLightCone.position.set(pos.x, pos.y, pos.z);
@@ -143,15 +103,18 @@ function init() {
 
         const lightSourceOffset = new THREE.Vector3(0, -0.2, 0.1).applyEuler(spotLightCone.rotation);
         const lightSourcePos = spotLightCone.position.clone().add(lightSourceOffset);
-        const spotLight = new THREE.SpotLight(stageLightColors[index], 7, 20, Math.PI / 7, 0.4, 1.5);
+        const spotLight = new THREE.SpotLight(stageLightColors[index], 8, 22, Math.PI / 6, 0.35, 1.5); 
         spotLight.position.copy(lightSourcePos);
         spotLight.target.position.set(pos.x, 0, -1);
-        spotLight.castShadow = false; // PERFORMANCE: No shadows
         scene.add(spotLight); scene.add(spotLight.target);
+        
+        stageSpotLights.push({ light: spotLight, cone: spotLightCone, target: spotLight.target });
 
         animatedObjects.push({ mesh: spotLight, targetObj: spotLight.target, action: (time) => {
-            spotLight.target.position.x = Math.sin(time*0.4+index*Math.PI)*5;
-            spotLight.target.position.z = -1 + Math.cos(time*0.25+index*Math.PI*0.5)*3;
+            if (spotLight.visible) { 
+                spotLight.target.position.x = Math.sin(time*0.4+index*Math.PI)*5;
+                spotLight.target.position.z = -1 + Math.cos(time*0.25+index*Math.PI*0.5)*3;
+            }
         }});
     });
 
@@ -160,7 +123,6 @@ function init() {
     const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x202025, side: THREE.DoubleSide });
     const groundPlane = new THREE.Mesh(groundGeometry, groundMaterial);
     groundPlane.rotation.x = -Math.PI / 2;
-    // groundPlane.receiveShadow = false; // No shadows
     scene.add(groundPlane); shapes.push(groundPlane);
 
     const stageGeo = new THREE.BoxGeometry(6, 0.4, 3);
@@ -184,56 +146,7 @@ function init() {
     const beerPongTableScale = new THREE.Vector3(10, 10, 10);
     const beerPongTableBaseY = 0.02;
     loadAndPlaceOBJModel(beerPongTablePath, beerPongTableOBJ, beerPongTableMTL, new THREE.Vector3(-5, beerPongTableBaseY, 4), beerPongTableScale, "Beer Pong Table");
-    
-    // Beer Pong Cups - InstancedMesh
-    const cupOriginalHeight = 0.3;
-    const cupScaleFactor = beerPongTableScale.x / 3.5; // Relative scaling factor used before, adjust if needed
-    const cupScaledHeight = cupOriginalHeight * cupScaleFactor;
-    const cupScaledTopRadius = 0.15 * cupScaleFactor;
-    const cupScaledBottomRadius = 0.1 * cupScaleFactor;
-    const cupGeo = new THREE.CylinderGeometry(cupScaledTopRadius, cupScaledBottomRadius, cupScaledHeight, 6); // PERFORMANCE: Low segments
-    const redCupMat = new THREE.MeshStandardMaterial({ color: 0xB22222, roughness: 0.7, metalness: 0.1 });
-    
-    const beerPongCupCount = 6;
-    const beerPongCupsInstanced = new THREE.InstancedMesh(cupGeo, redCupMat, beerPongCupCount);
-    const dummyCupBP = new THREE.Object3D();
-    const scaledBeerPongTableSurfaceY = beerPongTableBaseY + (BEER_PONG_TABLE_ORIGINAL_SURFACE_HEIGHT * beerPongTableScale.y);
-
-    for(let i=0; i<beerPongCupCount; i++){
-        const row = i < 3 ? 0 : (i < 5 ? 1 : 2);
-        const col = i < 3 ? i : (i < 5 ? i - 3 : i - 5);
-        const cupSpacing = cupScaledTopRadius * 2.5;
-        const offsetX = (row === 0) ? 0 : (row === 1 ? -cupScaledTopRadius : -cupScaledTopRadius*2);
-        dummyCupBP.position.set(
-            -5 + (col * cupSpacing) + offsetX,
-            scaledBeerPongTableSurfaceY + cupScaledHeight / 2,
-            4 - (0.5 * beerPongTableScale.z / 10) * BEER_PONG_TABLE_ORIGINAL_SURFACE_HEIGHT + (row * cupSpacing)
-        );
-        dummyCupBP.updateMatrix();
-        beerPongCupsInstanced.setMatrixAt(i, dummyCupBP.matrix);
-    }
-    scene.add(beerPongCupsInstanced);
-
-    // Ping Pong Ball
-    const ballScaledRadius = 0.05 * cupScaleFactor;
-    const ballGeo = new THREE.SphereGeometry(ballScaledRadius, 6, 3); // PERFORMANCE: Low segments
-    const ballMat = new THREE.MeshStandardMaterial({color: 0xffffee, roughness: 0.2});
-    const ball = new THREE.Mesh(ballGeo, ballMat);
-    ball.position.set(-5, scaledBeerPongTableSurfaceY + ballScaledRadius, 4);
-    scene.add(ball); shapes.push(ball);
-
-    // Scattered Cups - InstancedMesh
-    const scatteredCupCount = 10; // Increased count now that it's instanced
-    const scatteredCupsInstanced = new THREE.InstancedMesh(cupGeo, redCupMat, scatteredCupCount); // Re-use cupGeo and redCupMat
-    const dummyCupScatter = new THREE.Object3D();
-    for(let i=0; i<scatteredCupCount; i++){
-        dummyCupScatter.position.set((Math.random()-0.5)*15, cupScaledHeight/2, (Math.random()-0.5)*15);
-        dummyCupScatter.rotation.set(Math.random()*0.5, Math.random()*Math.PI, Math.random()*0.5);
-        dummyCupScatter.updateMatrix();
-        scatteredCupsInstanced.setMatrixAt(i, dummyCupScatter.matrix);
-    }
-    scene.add(scatteredCupsInstanced);
-
+        
     const speakerGeo = new THREE.BoxGeometry(0.8, 1.5, 0.6);
     const speakerMat = new THREE.MeshStandardMaterial({ color: 0x181818 });
     const speaker1 = new THREE.Mesh(speakerGeo, speakerMat);
@@ -241,47 +154,186 @@ function init() {
     const speaker2 = new THREE.Mesh(speakerGeo, speakerMat);
     speaker2.position.set(3, 0.75, -4); scene.add(speaker2); shapes.push(speaker2);
 
-    // REQUIREMENT: At least one of them should be textured (primary shape)
-    const width=2,height=2;const size=width*height;const data=new Uint8Array(3*size);
-    const tColors=[new THREE.Color(0x440000),new THREE.Color(0x111111)];
+    const blanketGeo=new THREE.PlaneGeometry(2,2); 
+    const width=2,height=2;const size=width*height;const data=new Uint8Array(3*size); const tColors=[new THREE.Color(0x440000),new THREE.Color(0x111111)];
     for(let i=0;i<size;i++){const s=i*3;const x=i%width;const y=Math.floor(i/width);const c=tColors[(x+y)%2];data[s]=Math.floor(c.r*255);data[s+1]=Math.floor(c.g*255);data[s+2]=Math.floor(c.b*255);}
-    const procTexture=new THREE.DataTexture(data,width,height,THREE.RGBFormat);
-    procTexture.needsUpdate=true;procTexture.magFilter=THREE.NearestFilter;
-    const blanketGeo=new THREE.PlaneGeometry(2,2);
+    const procTexture=new THREE.DataTexture(data,width,height,THREE.RGBFormat); procTexture.needsUpdate=true;procTexture.magFilter=THREE.NearestFilter;
     const texturedBlanketMat=new THREE.MeshStandardMaterial({map:procTexture});
-    const blanket1=new THREE.Mesh(blanketGeo,texturedBlanketMat);
-    blanket1.rotation.x=-Math.PI/2;blanket1.position.set(4,0.01,4);
+    const blanket1=new THREE.Mesh(blanketGeo,texturedBlanketMat); blanket1.rotation.x=-Math.PI/2;blanket1.position.set(4,0.01,4);
     scene.add(blanket1);shapes.push(blanket1);
 
-    // REQUIREMENT: At least one of them should be animated (primary shape)
-    const balloonGeo=new THREE.SphereGeometry(0.4,8,4); // PERFORMANCE: Low segments
+    const balloonGeo=new THREE.SphereGeometry(0.4,8,4);
     const balloonMat=new THREE.MeshPhongMaterial({color:0xaa0000,shininess:30});
     const balloon=new THREE.Mesh(balloonGeo,balloonMat);
-    balloon.position.set(-5,2.5,6);scene.add(balloon);shapes.push(balloon);
+    balloon.position.set(-6,3.5,7); 
+    scene.add(balloon);shapes.push(balloon); 
+    const stringGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.2, 5); 
+    const stringMat = new THREE.MeshBasicMaterial({color: 0x222222});
+    const balloonString = new THREE.Mesh(stringGeo, stringMat);
+    balloonString.position.y = - (balloonGeo.parameters.radius + stringGeo.parameters.height / 2) + 0.05; 
+    balloon.add(balloonString); shapes.push(balloonString); 
     balloon.userData.initialY=balloon.position.y;
     animatedObjects.push({mesh:balloon,action:(t)=>{balloon.position.y=balloon.userData.initialY+Math.sin(t*1.5)*0.2;balloon.rotation.y+=0.005;}});
     
-    const decorativeConeGeo = new THREE.ConeGeometry(0.3,0.7,6); // PERFORMANCE: Low segments
+    const decorativeConeGeo = new THREE.ConeGeometry(0.3,0.7,6);
     const decorativeConeMat = new THREE.MeshStandardMaterial({color:0x008080});
-    const cone1 = new THREE.Mesh(decorativeConeGeo,decorativeConeMat);
-    cone1.position.set(5,0.35,-2);scene.add(cone1);shapes.push(cone1);
-    const cone2 = new THREE.Mesh(decorativeConeGeo,decorativeConeMat);
-    cone2.position.set(-5,0.35,-2);scene.add(cone2);shapes.push(cone2);
-    // Non-instanced shapes: Ground(1), Stage(1), DJTable(1), Poles(3), SpotlightCones(2), Ball(1), Speakers(2), Blanket(1), Balloon(1), DecCones(2) = 15
-    // Instanced shapes (visually many): Bulbs, BP Cups, Scattered Cups. These count towards the "20 primary shapes" visually.
+    const cone1 = new THREE.Mesh(decorativeConeGeo,decorativeConeMat); cone1.position.set(5,0.35,-2);scene.add(cone1);shapes.push(cone1);
+    const cone2 = new THREE.Mesh(decorativeConeGeo,decorativeConeMat); cone2.position.set(-5,0.35,-2);scene.add(cone2);shapes.push(cone2);
 
-    // --- WOW POINT INTEGRATION --- (Placeholder comments remain)
-    const wowBoxGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const wowBoxMat = new THREE.MeshStandardMaterial({ color: 0xff8800 });
-    const wowBox = new THREE.Mesh(wowBoxGeo, wowBoxMat);
-    wowBox.name = "wowPointBox"; wowBox.position.set(0, 0.25, 8); scene.add(wowBox);
+    // Attached String Lights (Visual Bulbs + Few Actual Point Lights)
+    const wireMat = new THREE.MeshBasicMaterial({color: 0x222222});
+    const bulbEmissiveMat = new THREE.MeshBasicMaterial({color: 0xffff88}); 
+    const bulbRadius = 0.08; const wireRadius = 0.01;
+    const lightStrandsDef = [
+        { start: speaker1.position.clone().setY(2.0), end: djTable.position.clone().setY(2.2), bulbs: 7, addLightsAt: [2,5] },
+        { start: speaker2.position.clone().setY(2.0), end: djTable.position.clone().setY(2.2), bulbs: 7, addLightsAt: [2,5] },
+        { start: new THREE.Vector3(-2, 2.8, -3.0), end: new THREE.Vector3(2, 2.8, -3.0), bulbs: 9, addLightsAt: [1,4,7] }
+    ];
+    lightStrandsDef.forEach(def => {
+        const distance = def.start.distanceTo(def.end);
+        const wireGeo = new THREE.CylinderGeometry(wireRadius, wireRadius, distance, 6);
+        const wire = new THREE.Mesh(wireGeo, wireMat);
+        wire.position.lerpVectors(def.start, def.end, 0.5);
+        wire.lookAt(def.end); wire.rotateX(Math.PI / 2);
+        scene.add(wire); shapes.push(wire);
+        for (let i = 0; i <= def.bulbs; i++) {
+            const t = i / def.bulbs;
+            const bulbPos = new THREE.Vector3().lerpVectors(def.start, def.end, t);
+            bulbPos.y -= Math.sin(t * Math.PI) * (distance * 0.05);
+            const bulbMesh = new THREE.Mesh(new THREE.SphereGeometry(bulbRadius, 6, 3), bulbEmissiveMat);
+            bulbMesh.position.copy(bulbPos);
+            scene.add(bulbMesh); shapes.push(bulbMesh);
+            if (def.addLightsAt && def.addLightsAt.includes(i)) {
+                const pointLight = new THREE.PointLight(0xffddaa, 0.9, 7, 1.8);
+                pointLight.position.copy(bulbPos);
+                scene.add(pointLight);
+            }
+        }
+    });
+    
+    // Pizza Boxes with Texture
+    const pizzaBoxGeo = new THREE.BoxGeometry(0.5, 0.04, 0.5); 
+    const pizzaBoxMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load('./textures/pizzabox.png',
+        function (loadedTexture) {
+            pizzaBoxMat.map = loadedTexture;
+            pizzaBoxMat.roughness = 0.9; pizzaBoxMat.metalness = 0.05;
+            pizzaBoxMat.needsUpdate = true; console.log("Pizza box texture ('pizzabox.png') loaded and applied.");
+        }, undefined, function (err) {
+            console.error("Error loading 'pizzabox.png'. Using fallback color. CHECK PATH: './textures/pizzabox.png'", err);
+            pizzaBoxMat.color.set(0xccaa88); pizzaBoxMat.needsUpdate = true;
+        }
+    );
+    for (let i = 0; i < 4; i++) {
+        const pizzaBox = new THREE.Mesh(pizzaBoxGeo, pizzaBoxMat);
+        pizzaBox.position.set((Math.random()-0.5)*7,0.02,((Math.random()-0.5)*7)+1);
+        pizzaBox.rotation.y = Math.random()*Math.PI; pizzaBox.rotation.z = (Math.random()-0.5)*0.3;
+        scene.add(pizzaBox); shapes.push(pizzaBox);
+    }
+
+    const kegGeo = new THREE.CylinderGeometry(0.3,0.3,0.6,10); const kegTopGeo = new THREE.CylinderGeometry(0.22,0.22,0.05,10);
+    const kegMat = new THREE.MeshStandardMaterial({color:0xb0c4de,metalness:0.9,roughness:0.2});
+    const kegPositions = [[3.5,0.3,-7], [-3.5,0.3,-7], [5,0.3,5]];
+    kegPositions.forEach(pos => {const keg=new THREE.Mesh(kegGeo,kegMat); const kegTop=new THREE.Mesh(kegTopGeo,kegMat);
+    keg.position.fromArray(pos);kegTop.position.set(keg.position.x,keg.position.y+0.3+0.025,keg.position.z);
+    scene.add(keg);shapes.push(keg);scene.add(kegTop);shapes.push(kegTop);});
+
+    const pyramidCupGeo = new THREE.CylinderGeometry(0.05,0.04,0.12,6); const pyramidCupMat = new THREE.MeshStandardMaterial({color:0xDD0000});
+    const basePyramidY = djTableYPos + djTableGeo.parameters.height/2 + pyramidCupGeo.parameters.height/2;
+    let cupPyramidPositions = [[0,0],[1,0],[-1,0],[0.5,1],[-0.5,1],[0,2]];
+    cupPyramidPositions.forEach(pos=>{const cup=new THREE.Mesh(pyramidCupGeo,pyramidCupMat);
+    cup.position.set(djTable.position.x+pos[0]*(pyramidCupGeo.parameters.topRadius*1.8),basePyramidY+pos[1]*(pyramidCupGeo.parameters.height*0.85),djTable.position.z+0.3);
+    scene.add(cup);shapes.push(cup);});
+
+    const wallGeo = new THREE.BoxGeometry(5,3,0.2); const wallMat = new THREE.MeshStandardMaterial({color:0x303035});
+    const backWall = new THREE.Mesh(wallGeo,wallMat); backWall.position.set(0,1.5,-9); scene.add(backWall);shapes.push(backWall);
+    const neonSignGeo = new THREE.PlaneGeometry(2,0.5); const neonSignMat = new THREE.MeshBasicMaterial({color:0xff00ff,emissive:0xff00ff,emissiveIntensity:2,transparent:true,opacity:0.8});
+    const neonSign = new THREE.Mesh(neonSignGeo,neonSignMat); neonSign.position.set(0,2,-8.88); scene.add(neonSign);shapes.push(neonSign);
+    
+    const bottleGeo = new THREE.CylinderGeometry(0.03,0.025,0.2,6); const bottleColors = [0x228B22,0x8B4513,0x708090];
+    for(let i=0;i<5;i++){const mat=new THREE.MeshStandardMaterial({color:bottleColors[i%bottleColors.length],roughness:0.3,metalness:0.1});
+    const bottle=new THREE.Mesh(bottleGeo,mat);bottle.position.set((Math.random()-0.5)*10,0.1,(Math.random()-0.5)*6+3);
+    bottle.rotation.z=(Math.random()-0.5)*0.5;bottle.rotation.x=(Math.random()-0.5)*0.2;scene.add(bottle);shapes.push(bottle);}
+
+    const coolerGeo = new THREE.BoxGeometry(0.8,0.5,0.4); const lidGeo = new THREE.BoxGeometry(0.82,0.1,0.42);
+    const coolerMat = new THREE.MeshStandardMaterial({color:0x0047AB});
+    const cooler=new THREE.Mesh(coolerGeo,coolerMat);cooler.position.set(5,0.25,6);scene.add(cooler);shapes.push(cooler);
+    const lid=new THREE.Mesh(lidGeo,coolerMat);lid.position.set(5,0.5+0.05,6);lid.rotation.x=-0.2;scene.add(lid);shapes.push(lid);
+
+    const tcGeo = new THREE.CylinderGeometry(0.3,0.25,0.8,10); const tcMat = new THREE.MeshStandardMaterial({color:0x333333});
+    for(let i=0;i<2;i++){const tc=new THREE.Mesh(tcGeo,tcMat);tc.position.set(i===0?7:-7,0.4,0);scene.add(tc);shapes.push(tc);
+    for(let j=0;j<3;j++){const trGeo=Math.random()>0.5?new THREE.SphereGeometry(0.1,5,3):new THREE.BoxGeometry(0.15,0.2,0.15);
+    const trMat=new THREE.MeshStandardMaterial({color:Math.random()*0xffffff,roughness:0.8});const tr=new THREE.Mesh(trGeo,trMat);
+    tr.position.set(tc.position.x+(Math.random()-0.5)*0.2,tc.position.y+0.2+(Math.random()-0.5)*0.2,tc.position.z+(Math.random()-0.5)*0.2);
+    tr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);scene.add(tr);shapes.push(tr);}}
+    
+    console.log("Total distinct primitive meshes counted in 'shapes' array:", shapes.length);
+
+    // REQUIREMENT: Wow Point - Interactive Light Switch for Stage Spotlights
+    const switchGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+    const switchMatOn = new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00cc00, emissiveIntensity: 0.6 });
+    const switchMatOff = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xcc0000, emissiveIntensity: 0.6 });
+
+    interactiveSwitch = new THREE.Mesh(switchGeo, switchMatOn); // Assign to global, start with 'on' material
+    interactiveSwitch.position.set(
+        djTable.position.x + djTableGeo.parameters.width / 2 - 0.15,
+        djTable.position.y + djTableGeo.parameters.height / 2 + 0.05,
+        djTable.position.z + djTableGeo.parameters.depth / 2 - 0.1
+    );
+    interactiveSwitch.name = "stageLightSwitch";
+    scene.add(interactiveSwitch);
+    shapes.push(interactiveSwitch);
+
+    interactiveSwitch.userData.matOn = switchMatOn;
+    interactiveSwitch.userData.matOff = switchMatOff;
+
+    // Set initial switch material based on actual light visibility
+    if (stageSpotLights.length > 0 && stageSpotLights[0].light.visible) {
+        interactiveSwitch.material = interactiveSwitch.userData.matOn;
+    } else {
+        interactiveSwitch.material = interactiveSwitch.userData.matOff;
+        // Ensure lights are actually off if switch material is off
+        stageSpotLights.forEach(sl => {
+            sl.light.visible = false;
+            sl.cone.visible = false;
+        });
+    }
     
     window.addEventListener('resize', onWindowResize, false);
+    renderer.domElement.addEventListener('click', onMouseClickWowPoint, false);
     animate();
 }
 
+function onMouseClickWowPoint(event) {
+    if (!interactiveSwitch) return; // Guard if switch not initialized
+
+    const rect = sceneContainer.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / sceneContainer.clientWidth) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / sceneContainer.clientHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(interactiveSwitch, false);
+
+    if (intersects.length > 0) {
+        console.log("Stage light switch clicked!");
+        const currentlyVisible = stageSpotLights.length > 0 && stageSpotLights[0].light.visible;
+        stageSpotLights.forEach(sl => {
+            sl.light.visible = !currentlyVisible;
+            sl.cone.visible = !currentlyVisible;
+        });
+
+        if (!currentlyVisible) {
+            interactiveSwitch.material = interactiveSwitch.userData.matOn;
+        } else {
+            interactiveSwitch.material = interactiveSwitch.userData.matOff;
+        }
+       
+    }
+}
+
+
 function loadAndPlaceOBJModel(path, objFile, mtlFile, position, scale, name) {
-    // ... (loadAndPlaceOBJModel function remains largely the same, ensure castShadow/receiveShadow are false if shadows are off)
     console.log(`Attempting to load ${name}: ${path}${objFile} with scale ${scale.x},${scale.y},${scale.z}`);
     const placeholderMat = new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false });
     const placeholderGeo = new THREE.BoxGeometry(1,1,1);
@@ -306,14 +358,10 @@ function loadAndPlaceOBJModel(path, objFile, mtlFile, position, scale, name) {
             object.scale.copy(scale);
             object.position.copy(position);
             object.name = name;
-            object.traverse(c => { if (c instanceof THREE.Mesh) {
-                // c.castShadow = false; // No shadows
-                // c.receiveShadow = false; // No shadows
-            }});
             scene.add(object);
             console.log(`${name} OBJ model loaded successfully!`);
-        }, (xhr) => { /* progress */ }, (e) => console.error(`[${name}] Error loading OBJ:`,e));
-    }, (xhr) => { /* progress */ }, (e) => {
+        }, undefined, (e) => console.error(`[${name}] Error loading OBJ:`,e));
+    }, undefined, (e) => {
         console.warn(`[${name}] MTL failed. Loading OBJ with default. Error:`,e);
         const objLoader = new OBJLoader();
         objLoader.setPath(path);
@@ -323,26 +371,31 @@ function loadAndPlaceOBJModel(path, objFile, mtlFile, position, scale, name) {
             object.position.copy(position);
             object.name = name;
             object.traverse(c => {if (c instanceof THREE.Mesh){
-                // c.castShadow = false; c.receiveShadow = false;
                 if(!c.material||(Array.isArray(c.material)&&!c.material.length)){c.material=new THREE.MeshStandardMaterial({color:0xaaaaaa});}
             }});
             scene.add(object);
-        }, (xhr) => { /* progress */ }, (eObj) => console.error(`[${name}] OBJ (no MTL) failed:`,eObj));
+        }, undefined, (eObj) => console.error(`[${name}] OBJ (no MTL) failed:`,eObj));
     });
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (sceneContainer) { 
+        camera.aspect = sceneContainer.clientWidth / sceneContainer.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight);
+    }
 }
 
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
-    controls.update(delta);
+    controls.update(delta); 
     animatedObjects.forEach(obj => obj.action(clock.getElapsedTime()));
     renderer.render(scene, camera);
 }
 
-init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

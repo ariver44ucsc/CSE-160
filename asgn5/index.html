@@ -3,19 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js Outside Party Scene</title>
+    <title>Frat Party Scene - Three.js</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
-        .info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
+        body {
+            margin: 0;
             font-family: Arial, sans-serif;
-            background-color: rgba(0,0,0,0.5);
-            padding: 5px;
+            background-color: #282c34; 
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            padding-top: 20px;  
+            padding-bottom: 20px; 
+            min-height: 100vh; 
+            box-sizing: border-box;
+        }
+        #scene-container {
+            width: 800px; 
+            height: 600px; 
+            background-color: #000; 
+            border: 2px solid #444; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
+        }
+        #notes-container {
+            width: 800px; 
+            padding: 20px;
+            box-sizing: border-box; 
+            margin-top: 20px;     
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 5px;
+        }
+        #notes-container h2 {
+            margin-top: 0;
+            color: #61dafb; 
+        }
+        textarea#grader-notes {
+            width: calc(100% - 12px); 
+            min-height: 200px; 
+            background-color: #2c2c2c;
+            color: #eee;
+            border: 1px solid #444;
             border-radius: 3px;
+            padding: 5px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif; 
+            font-size: 14px;          
+            line-height: 1.5; /* Improved readability for notes */
+        }
+        canvas { 
+            display: block; 
         }
     </style>
     <script type="importmap">
@@ -28,7 +65,44 @@
     </script>
 </head>
 <body>
-    <div class="info">Outside Party Scene - GLB/GLTF Model to be added</div>
+    <div id="scene-container">
+        </div>
+
+    <div id="notes-container">
+        <h2>Notes for the Grader / Wow Point Explanation:</h2>
+        <textarea id="grader-notes" readonly>
+**1. At least 20 3D primary shapes:**
+   - Yes - Scene includes well over 20 primitive shapes (cubes, spheres, cylinders, planes, cones) forming various party elements like the stage, tables, decorations, kegs, pizza boxes, etc.
+
+**2. At least one primary shape textured:**
+   - Yes - The pizza boxes are textured using `pizzabox.png`. 
+
+**3. At least one primary shape animated:**
+   - Yes - A red balloon sways and rotates. The stage spotlights also have animated targets, causing the light beams to move.
+
+**4. At least three different kinds of primary shapes:**
+   - Yes - The scene utilizes Box, Sphere, Cylinder, Plane, and Cone geometries.
+
+**5. At least one textured 3D model (.obj, .glb, or .gltf):**
+   - Yes - The project is set up to load user-provided OBJ models (DJ setup, beer pong table) with their MTL files, which are assumed to handle textures.
+
+**6. At least three different light sources:**
+   - Yes - Five different light types are active and noticeable: Ambient, Hemisphere, Directional, Spot, and Point lights.
+
+**7. A textured skybox:**
+   - Yes - A skybox is loaded from 6 images located in the `./skybox/` folder, creating the scene's background.
+
+**8. A camera with perspective projection:**
+   - Yes - A `PerspectiveCamera` is used for the 3D view.
+
+**9. Controls to navigate the scene with the mouse (and keyboard):**
+   - Yes - `FirstPersonControls` are implemented, allowing WASD/arrow key movement and continuous mouse-look (yaw/pitch).
+
+**10. Wow Point:**
+   - **Interactive Stage Light Switch:** A clickable "switch" object is placed on the DJ table. Clicking this switch toggles the two colored stage spotlights (and their visual fixture models) on or off. This interaction uses raycasting to detect the click on the switch. The switch's appearance changes to reflect the on/off state of the lights.
+        </textarea>
+    </div>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>
